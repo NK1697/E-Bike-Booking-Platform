@@ -8,20 +8,16 @@ void BikeManager::addBike(int bikeID) {
         cout << "Bike " << bikeID << " already exists.\n";
         return;
     }
-    bikes.emplace(bikeID, Bike(bikeID));
+    bikes.insert(bikeID, Bike(bikeID));
     cout << "Bike " << bikeID << " added successfully.\n";
 }
 
 bool BikeManager::bikeExists(int bikeID) const {
-    return bikes.find(bikeID) != bikes.end();
+    return bikes.contains(bikeID);
 }
 
 Bike* BikeManager::getBike(int bikeID) {
-    auto it = bikes.find(bikeID);
-    if (it == bikes.end()) {
-        return nullptr;
-    }
-    return &(it->second);
+    return bikes.find(bikeID);
 }
 
 void BikeManager::displayAllBikes() const {
@@ -29,8 +25,8 @@ void BikeManager::displayAllBikes() const {
         cout << "No bikes in the system.\n";
         return;
     }
-    for (const auto& pair : bikes) {
-        pair.second.displayBike();
+    bikes.forEach([](int, const Bike& bike) {
+        bike.displayBike();
         cout << '\n';
-    }
+    });
 }

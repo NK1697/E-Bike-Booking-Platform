@@ -1,36 +1,36 @@
 #ifndef RESERVATION_MANAGER_H
 #define RESERVATION_MANAGER_H
 
-#include <unordered_map>
-#include <queue>
+#include <vector>
+#include "../ds/CustomQueue.h"
 
 using namespace std;
 
 class UserManager;
-class BikeManager;
 class DockManager;
+
+struct DockQueue {
+    int dockID;
+    CustomQueue<int> users;
+    DockQueue(int id) : dockID(id) {}
+};
 
 class ReservationManager {
     private:
-        unordered_map<int, queue<int>> reservationQueues;
+        vector<DockQueue*> reservationQueues;
+        DockQueue* getQueue(int dockID);
+        const DockQueue* getQueue(int dockID) const;
 
     public:
-        bool requestBike(
+        ~ReservationManager();
+        bool addToQueue(
             int userID,
             int dockID,
             UserManager& userManager,
-            BikeManager& bikeManager,
             DockManager& dockManager
         );
-
-        bool returnBike(
-            int userID,
-            int dockID,
-            UserManager& userManager,
-            BikeManager& bikeManager,
-            DockManager& dockManager
-        );
-
+        bool hasWaitingUser(int dockID) const;
+        int getNextUser(int dockID);
         void displayQueue(int dockID) const;
 };
 

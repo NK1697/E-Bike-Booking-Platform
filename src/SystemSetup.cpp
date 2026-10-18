@@ -25,7 +25,11 @@ void setupSystem(Graph& campus,DockManager& dockManager,BikeManager& bikeManager
     bikeManager.addBike(502);
     bikeManager.addBike(503);
 
-    dockManager.getDock(101)->addBike(501);
-    dockManager.getDock(101)->addBike(502);
-    dockManager.getDock(102)->addBike(503);
+    Dock* library = dockManager.getDock(101);
+    Dock* hostel = dockManager.getDock(102);
+    if (library != nullptr) {
+        library->addBike(501);
+        library->addBike(502);
+    }
+    if (hostel != nullptr) hostel->addBike(503);
 }

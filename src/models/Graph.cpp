@@ -1,134 +1,125 @@
 #include "../../include/models/Graph.h"
 #include <climits>
-#include <queue>
 #include <iostream>
 using namespace std;
 
+int Graph::getLocationIndex(int locationID) const {
+    for (int i = 0; i < static_cast<int>(locations.size()); i++) {
+        if (locations[i].locationID == locationID) return i;
+    }
+    return -1;
+}
+
 void Graph::addLocation(int locationID, string name) {
-    if (locationNames.find(locationID) != locationNames.end()) {
+    if (getLocationIndex(locationID) != -1) {
         cout << "Location " << locationID << " already exists.\n";
         return;
     }
-    locationNames[locationID] = name;
-    adjacencyList[locationID];
+    locations.push_back({locationID, name, vector<Edge>(), false});
     cout << "Location " << name << " added successfully.\n";
 }
 
 void Graph::addRoad(int location1, int location2, int distance){
-    if (locationNames.find(location1) == locationNames.end() ||
-        locationNames.find(location2) == locationNames.end()) {
+    int firstIndex = getLocationIndex(location1);
+    int secondIndex = getLocationIndex(location2);
+    if (firstIndex == -1 || secondIndex == -1) {
         cout << "One or both locations do not exist.\n";
         return;
     }
-    adjacencyList[location1].push_back(
-        {location2, distance}
-    );
-    adjacencyList[location2].push_back(
-        {location1, distance}
-    );
-    cout << "Road added between " << locationNames[location1] << " and " << locationNames[location2] << ".\n";
+    if (distance <= 0) {
+        cout << "Road distance must be positive.\n";
+        return;
+    }
+    locations[firstIndex].roads.push_back({location2, distance});
+    locations[secondIndex].roads.push_back({location1, distance});
+    cout << "Road added between " << locations[firstIndex].name << " and " << locations[secondIndex].name << ".\n";
 }
 
 void Graph::displayGraph() const {
-    for (const auto& location : adjacencyList) {
-        int locationID = location.first;
-        cout << locationNames.at(locationID) << " (" << locationID << ")" << " -> ";
-        for (const auto& neighbour : location.second) {
-            int neighbourID = neighbour.first;
-            int distance = neighbour.second;
-            cout << locationNames.at(neighbourID)
-                 << "[" << distance << "] ";
+    for (const LocationData& location : locations) {
+        cout << location.name << " (" << location.locationID << ") -> ";
+        for (const Edge& road : location.roads) {
+            int neighbourIndex = getLocationIndex(road.destinationLocationID);
+            cout << locations[neighbourIndex].name
+                 << "[" << road.distance << "] ";
         }
         cout << '\n';
     }
 }
 
-unordered_map<int, int> Graph::dijkstra(int startLocation) const{
-    unordered_map<int, int> distance;
-    for (const auto& location : locationNames) {
-        distance[location.first] = INT_MAX;
-    }
-
-    distance[startLocation] = 0;
-
-    priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int> >> pq;
-    pq.push({0, startLocation});
-
-    while (!pq.empty()) {
-        int currentDistance = pq.top().first;
-        int currentLocation = pq.top().second;
-
-        pq.pop();
-
-        if (currentDistance > distance[currentLocation]) {
-            continue;
-        }
-
-        for (const auto& neighbour : adjacencyList.at(currentLocation)) {
-            int neighbourID = neighbour.first;
-            int roadDistance = neighbour.second;
-
-            int newDistance = currentDistance + roadDistance;
-
-            if (newDistance < distance[neighbourID]) {
-                distance[neighbourID] = newDistance;
-                pq.push({newDistance, neighbourID});
+vector<LocationDistance> Graph::dijkstra(int startLocation) const {
+    vector<LocationDistance> distances;
+    for (const LocationData& location : locations) distances.push_back({location.locationID, INT_MAX});
+    int startIndex = getLocationIndex(startLocation);
+    if (startIndex == -1) return distances;
+    distances[startIndex].distance = 0;
+    MinHeap heap;
+    heap.push(0, startLocation);
+    HeapNode current;
+    while (heap.pop(current)) {
+        int currentIndex = getLocationIndex(current.locationID);
+        if (current.distance > distances[currentIndex].distance) continue;
+        for (const Edge& road : locations[currentIndex].roads) {
+            int nextIndex = getLocationIndex(road.destinationLocationID);
+            int newDistance = current.distance + road.distance;
+            if (newDistance < distances[nextIndex].distance) {
+                distances[nextIndex].distance = newDistance;
+                heap.push(newDistance, road.destinationLocationID);
             }
         }
     }
-    return distance;
+    return distances;
 }
 
 void Graph::markAsDock(int locationID) {
-    if (locationNames.find(locationID) == locationNames.end()) {
+    int index = getLocationIndex(locationID);
+    if (index == -1) {
         cout << "Location does not exist.\n";
         return;
     }
 
-    dockLocations.insert(locationID);
-
-    cout << locationNames.at(locationID) << " marked as a bike dock.\n";
+    locations[index].isDock = true;
+    cout << locations[index].name << " marked as a bike dock.\n";
 }
 
 int Graph::findNearestDock(int startLocation) const {
-    if (locationNames.find(startLocation) == locationNames.end()) {
+    if (getLocationIndex(startLocation) == -1) {
         return -1;
     }
 
-    unordered_map<int, int> distance;
-    for (const auto& location : locationNames) {
-        distance[location.first] = INT_MAX;
-    }
-
-    distance[startLocation] = 0;
-    priority_queue<pair<int, int>,vector<pair<int, int>>,greater<pair<int, int>> > pq;
-
-    pq.push({0, startLocation});
-    while (!pq.empty()) {
-        int currentDistance = pq.top().first;
-        int currentLocation = pq.top().second;
-
-        pq.pop();
-        if (currentDistance >
-            distance[currentLocation]) {
-            continue;
-        }
-        if (dockLocations.find(currentLocation) !=
-            dockLocations.end()) {
-
-            return currentLocation;
-        }
-        for (const auto& neighbour : adjacencyList.at(currentLocation)) {
-            int neighbourID = neighbour.first;
-            int roadDistance = neighbour.second;
-
-            int newDistance = currentDistance + roadDistance;
-
-            if (newDistance < distance[neighbourID]) {
-                distance[neighbourID] = newDistance;
-                pq.push({newDistance, neighbourID});
-            }
+    vector<LocationDistance> distances = dijkstra(startLocation);
+    int nearestLocation = -1;
+    int nearestDistance = INT_MAX;
+    for (int i = 0; i < static_cast<int>(locations.size()); i++) {
+        if (locations[i].isDock && distances[i].distance < nearestDistance) {
+            nearestDistance = distances[i].distance;
+            nearestLocation = locations[i].locationID;
         }
     }
-    return -1;
+    return nearestLocation;
+}
+
+vector<NearbyDock> Graph::getNearbyDocks(int startLocation) const {
+    vector<NearbyDock> nearbyDocks;
+    if (getLocationIndex(startLocation) == -1) return nearbyDocks;
+
+    vector<LocationDistance> distances = dijkstra(startLocation);
+    for (int i = 0; i < static_cast<int>(locations.size()); i++) {
+        if (locations[i].isDock && distances[i].distance != INT_MAX) {
+            nearbyDocks.push_back({locations[i].locationID, distances[i].distance});
+        }
+    }
+
+    for (int i = 0; i < static_cast<int>(nearbyDocks.size()); i++) {
+        int smallest = i;
+        for (int j = i + 1; j < static_cast<int>(nearbyDocks.size()); j++) {
+            if (nearbyDocks[j].distance < nearbyDocks[smallest].distance) smallest = j;
+        }
+        if (smallest != i) {
+            NearbyDock temp = nearbyDocks[i];
+            nearbyDocks[i] = nearbyDocks[smallest];
+            nearbyDocks[smallest] = temp;
+        }
+    }
+    return nearbyDocks;
 }

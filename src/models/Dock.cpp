@@ -1,13 +1,12 @@
 #include "../../include/models/Dock.h"
 #include <iostream>
-#include <algorithm>
 
 using namespace std;
 
-Dock::Dock(int id, string name, int LocationID) {
+Dock::Dock(int id, string name, int locationID) {
     dockID = id;
     this->name = name;
-    this->LocationID = LocationID;
+    this->locationID = locationID;
 }
 
 int Dock::getDockID() const {
@@ -18,19 +17,32 @@ string Dock::getName() const {
     return name;
 }
 
-int Dock::getGraphLocationID() const {
-    return LocationID;
+int Dock::getLocationID() const {
+    return locationID;
 }
 
 void Dock::addBike(int bikeID) {
+    for (int storedBikeID : bikes) {
+        if (storedBikeID == bikeID) {
+            return;
+        }
+    }
     bikes.push_back(bikeID);
 }
 
 bool Dock::removeBike(int bikeID){
-    auto it = find(bikes.begin(), bikes.end(), bikeID);
-    if (it != bikes.end()) {
-        bikes.erase(it);
-        return true;
+    for (int i = 0; i < static_cast<int>(bikes.size()); i++) {
+        if (bikes[i] == bikeID) {
+            bikes.erase(bikes.begin() + i);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Dock::hasBike(int bikeID) const {
+    for (int storedBikeID : bikes) {
+        if (storedBikeID == bikeID) return true;
     }
     return false;
 }
@@ -44,8 +56,8 @@ void Dock::displayDock() const {
         cout << "No bikes available";
     } 
     else {
-        for(int bikeID : bikes) {
-            cout << bikeID << " ";
+        for(int storedBikeID : bikes) {
+            cout << storedBikeID << " ";
         }
     }
     cout << '\n';

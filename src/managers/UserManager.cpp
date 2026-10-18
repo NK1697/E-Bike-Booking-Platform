@@ -3,20 +3,16 @@
 using namespace std;
 
 void UserManager::addUser(int userID, string name, string email) {
-    if (users.find(userID) != users.end()) {
+    if (users.contains(userID)) {
         cout << "User " << userID << " already exists.\n";
         return;
     }
-    users.emplace(userID, User(userID, name, email));
+    users.insert(userID, User(userID, name, email));
     cout << "User " << userID << " registered successfully.\n";
 }
 
 User* UserManager::getUser(int userID) {
-    auto it = users.find(userID);
-    if (it == users.end()) {
-        return nullptr;
-    }
-    return &(it->second);
+    return users.find(userID);
 }
 
 void UserManager::displayAllUsers() const {
@@ -24,8 +20,8 @@ void UserManager::displayAllUsers() const {
         cout << "No users registered.\n";
         return;
     }
-    for (const auto& pair : users) {
-        pair.second.displayUser();
+    users.forEach([](int, const User& user) {
+        user.displayUser();
         cout << '\n';
-    }
+    });
 }

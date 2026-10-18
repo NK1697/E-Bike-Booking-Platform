@@ -1,13 +1,13 @@
 #ifndef USER_MANAGER_H
 #define USER_MANAGER_H
 
-#include <unordered_map>
+#include "../ds/HashTable.h"
 #include "../models/User.h"
 using namespace std;
 
 class UserManager {
 private:
-    unordered_map<int, User> users;
+    HashTable<User> users;
 
 public:
     void addUser(int userID, string name, string email);

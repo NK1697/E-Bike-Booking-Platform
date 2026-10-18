@@ -63,11 +63,63 @@ bool RentalManager::rentBike(
 
     user->assignBike(bikeID);
 
-    activeRentals[userID] = bikeID;
+    activeRentals.insert(userID, bikeID);
 
     cout << "Bike " << bikeID
          << " assigned to User "
          << userID << ".\n";
 
     return true;
+}
+
+bool RentalManager::returnBike(
+    int userID,
+    int dockID,
+    UserManager& userManager,
+    BikeManager& bikeManager,
+    DockManager& dockManager,
+    ReservationManager& reservationManager
+) {
+    User* user = userManager.getUser(userID);
+    Dock* dock = dockManager.getDock(dockID);
+    int bikeID = getActiveBike(userID);
+
+    if (user == nullptr || dock == nullptr) {
+        cout << "User or dock does not exist.\n";
+        return false;
+    }
+    if (!user->hasBike() || bikeID == -1 || user->getCurrentBike() != bikeID) {
+        cout << "User does not have an active rental.\n";
+        return false;
+    }
+    Bike* bike = bikeManager.getBike(bikeID);
+    if (bike == nullptr) {
+        cout << "Bike data not found.\n";
+        return false;
+    }
+
+    user->returnBike();
+    activeRentals.erase(userID);
+    bike->returnBike();
+
+    while (reservationManager.hasWaitingUser(dockID)) {
+        int nextUserID = reservationManager.getNextUser(dockID);
+        User* nextUser = userManager.getUser(nextUserID);
+        if (nextUser != nullptr && !nextUser->hasBike()) {
+            nextUser->assignBike(bikeID);
+            activeRentals.insert(nextUserID, bikeID);
+            bike->rentBike();
+            cout << "Bike " << bikeID << " automatically assigned to User " << nextUserID << ".\n";
+            return true;
+        }
+    }
+
+    dock->addBike(bikeID);
+    cout << "Bike " << bikeID << " returned to Dock " << dockID << ".\n";
+    return true;
+}
+
+int RentalManager::getActiveBike(int userID) const {
+    const int* bikeID = activeRentals.find(userID);
+    return bikeID == nullptr ? -1 : *bikeID;
 }

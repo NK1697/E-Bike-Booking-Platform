@@ -1,0 +1,958 @@
+CAMPUS E-BIKE RENTAL SYSTEM
+PROJECT SPECIFICATION AND CODEX WORKING GUIDE
+Last updated: 17 October 2026
+
+======================================================================
+1. PURPOSE OF THIS FILE
+======================================================================
+
+This document is the project specification and working guide for Codex.
+Read it before inspecting, editing, generating, or deleting project files.
+
+The project is a modular C++ campus e-bike rental and docking system. It
+models campus locations and roads, bike docks, users, bikes, reservations,
+rentals, returns, and eventually bike maintenance. The longer-term goal is
+to expose the C++ backend through a real website frontend. A command-line
+interface is only a temporary way to test the backend; it is not intended
+to be the final user interface.
+
+The recovered project files may be older than the latest versions. Do not
+assume that a feature is currently present just because this document says
+it was implemented previously. Inspect the actual files, report what is
+present/missing/inconsistent, and then make changes incrementally.
+
+This document records:
+- The intended system and user flows.
+- The architecture and module responsibilities.
+- The project decisions and naming conventions.
+- Data structures that were previously used.
+- The new restriction on STL data structures.
+- Features previously implemented and features still to verify or build.
+- Testing, compilation, and documentation expectations.
+- Instructions for Codex to preserve the student's ownership of the work.
+
+======================================================================
+2. PROJECT OVERVIEW
+======================================================================
+
+Build a backend for a campus bike/e-bike rental service, conceptually similar
+to a small campus-focused bike-sharing service.
+
+A user should eventually be able to:
+1. Register an account and log in.
+2. Identify a campus location or select their current location.
+3. Find the nearest bike dock using the campus road graph.
+4. See docks and the bikes available at each dock.
+5. Rent an available bike from a selected dock.
+6. Join a first-in, first-out (FIFO) reservation queue if no bike is
+   available at the selected dock.
+7. Have a waiting user automatically receive a bike when one is returned
+   to a dock, provided the reservation rules allow it.
+8. Return a rented bike to a dock.
+9. See their active rental and basic bike/dock status.
+10. Eventually report a faulty bike and support maintenance tracking.
+
+Later, the system may add rental duration, payment plans, payment processing,
+QR-code unlock simulation, account authentication improvements, and a real
+website frontend. Do not pretend these later features already exist unless
+the current code proves that they do.
+
+The current priority is a correct, modular C++ backend with appropriate
+data structures and tests. Do not start building a full website before the
+backend's data model and core operations are reliable.
+
+======================================================================
+3. IMPORTANT COURSE RESTRICTION: DO NOT USE STL DATA STRUCTURES
+======================================================================
+
+The course instructor appears to prohibit using built-in STL data structures.
+The student's current understanding is that std::string and std::vector are
+allowed, but the restriction on other standard-library facilities has not
+been confirmed word-for-word. Use the conservative interpretation below.
+
+Likely permitted:
+- std::string
+- std::vector
+- std::iostream / basic input-output
+- Basic C++ language features, classes, structs, references, pointers,
+  arrays, loops, and functions.
+- Other basic headers only when needed and only if they do not provide a
+  prohibited data structure or algorithm.
+
+Do not use these STL containers or facilities:
+- std::unordered_map
+- std::unordered_set
+- std::map or std::set
+- std::queue
+- std::stack
+- std::priority_queue
+- std::list
+- std::deque
+- std::pair, unless the instructor explicitly permits it
+- STL algorithms such as std::sort, std::find, std::min_element, etc.
+
+Do not use a prohibited container indirectly inside a custom class. A class
+that is supposed to implement a queue must not store a std::queue internally.
+The point is to implement the relevant data structure and its operations
+ourselves.
+
+Because std::vector and std::string are believed to be permitted, they can
+be retained for ordinary dynamic sequences and text. However, if a required
+course operation specifically expects a data structure to be implemented
+from scratch, implement that structure ourselves rather than relying on a
+vector as a substitute for the required queue, stack, hash table, or heap.
+
+Before relying on a borderline header or type, flag it for the student to
+confirm with the instructor. Do not silently assume that every item in the
+standard library is allowed.
+
+Required custom data structures:
+A. Custom hash table
+   - Replaces unordered_map and unordered_set.
+   - Used for efficient lookup by user ID, bike ID, dock ID, and possibly
+     location ID.
+   - Must handle collisions explicitly.
+   - Choose and document a collision strategy, such as separate chaining
+     using a custom linked list, or open addressing.
+   - Must support the operations actually required by the project, such as
+     insert, find, update, contains, and erase where necessary.
+   - Avoid copying entire values unnecessarily. Consider returning a pointer
+     to a stored value when that matches the existing manager API.
+   - Define behavior for duplicate keys, missing keys, and table growth.
+   - If resizing is implemented, rehash every existing entry correctly.
+
+B. Custom FIFO queue
+   - Replaces std::queue in the reservation system.
+   - Prefer a linked-list implementation with front and rear pointers.
+   - Required operations: enqueue, dequeue, front/peek, empty, and optionally
+     display/traversal and size.
+   - Enqueue must add to the rear; dequeue must remove from the front.
+   - Maintain correct front/rear state when the final element is removed.
+   - Define safe behavior for empty dequeue/peek.
+
+C. Custom min-heap / priority queue
+   - Replaces std::priority_queue in Dijkstra's shortest-path algorithm.
+   - Implement a binary min-heap using an array or std::vector if permitted.
+   - Required operations: insert/push, extract-min/pop, peek-min/top, empty,
+     and heapify-up/heapify-down.
+   - Store a custom struct such as HeapNode { int distance; int locationID; }
+     instead of std::pair.
+   - Dijkstra needs the entry with the smallest tentative distance first.
+   - Handle stale heap entries by ignoring an entry whose distance is greater
+     than the best distance currently recorded for that location.
+
+D. Custom stack
+   - A stack is a project/course requirement candidate, but the current core
+     flows may not need one immediately.
+   - Implement it in a separate reusable module if the course expects a stack
+     to be demonstrated.
+   - Required operations: push, pop, top/peek, empty, and optionally size.
+   - Do not add a fake stack use just to claim it is integrated. If it is not
+     needed by a current feature, keep it as a standalone tested data
+     structure and explain its use or planned use.
+
+E. Custom linked list, if useful
+   - A custom linked list can be used internally by the hash table or queue.
+   - Keep its interface simple and avoid overengineering it.
+
+F. Custom set, if needed
+   - A set of dock location IDs was previously used to mark which graph
+     locations contain docks.
+   - This can be represented by a custom hash set, a custom hash table with
+     boolean values, or another clearly justified approach.
+   - Avoid using std::unordered_set.
+
+Do not replace every STL type blindly without checking what operations are
+actually needed. First inspect the current source and list every occurrence
+of prohibited types and algorithms. Then create the reusable custom structures
+and migrate the dependent modules.
+
+======================================================================
+4. CAMPUS MODEL AND SAMPLE DATA
+======================================================================
+
+The campus is represented as a weighted, undirected graph.
+
+A graph location ID is distinct from a dock ID. Use the exact variable name
+locationID (not graphLocationID) for the graph location identifier.
+
+Sample locations:
+- Location 1: CSE
+- Location 2: Library
+- Location 3: Hostel
+- Location 4: Main Gate
+- Location 5: Sports Complex
+
+Sample roads and distances:
+- CSE (1) <-> Library (2), distance 3
+- CSE (1) <-> Main Gate (4), distance 5
+- Library (2) <-> Hostel (3), distance 4
+- Hostel (3) <-> Main Gate (4), distance 2
+- Library (2) <-> Sports Complex (5), distance 6
+
+These are example graph weights, not necessarily real-world distances. Treat
+them as abstract travel costs unless a unit is explicitly defined.
+
+Sample docks:
+- Dock ID 101: "Library", at locationID 2
+- Dock ID 102: "Hostel Zone", at locationID 3
+
+Sample bikes:
+- Bike 501 starts at Dock 101.
+- Bike 502 starts at Dock 101.
+- Bike 503 starts at Dock 102.
+
+Keep IDs distinct by entity type. A dock's ID identifies the dock object;
+its locationID identifies its position in the campus graph.
+
+The campus graph, dock locations, and initial bike distribution are hardcoded
+in SystemSetup. The user should not have to manually configure backend
+invariants every time the program starts. Later, a database or admin
+configuration interface could replace this hardcoded setup.
+
+======================================================================
+5. EXPECTED ARCHITECTURE AND DIRECTORY LAYOUT
+======================================================================
+
+Keep declarations in .h files and definitions in .cpp files. The project was
+previously organized as follows:
+
+EbikeSystem/
+|-- include/
+|   |-- ds/
+|   |   |-- CustomQueue.h
+|   |   |-- CustomStack.h
+|   |   |-- HashTable.h
+|   |   |-- MinHeap.h
+|   |   `-- any other custom structure that is genuinely required
+|   |-- models/
+|   |   |-- User.h
+|   |   |-- Bike.h
+|   |   |-- Dock.h
+|   |   `-- Graph.h
+|   |-- managers/
+|   |   |-- UserManager.h
+|   |   |-- BikeManager.h
+|   |   |-- DockManager.h
+|   |   |-- ReservationManager.h
+|   |   |-- RentalManager.h
+|   |   `-- MaintenanceManager.h (planned; verify whether it exists)
+|   `-- SystemSetup.h
+|-- src/
+|   |-- ds/
+|   |   |-- CustomQueue.cpp (if not template-based)
+|   |   |-- CustomStack.cpp (if not template-based)
+|   |   |-- MinHeap.cpp (if not template-based)
+|   |   `-- other custom structure implementations
+|   |-- models/
+|   |   |-- User.cpp
+|   |   |-- Bike.cpp
+|   |   |-- Dock.cpp
+|   |   `-- Graph.cpp
+|   |-- managers/
+|   |   |-- UserManager.cpp
+|   |   |-- BikeManager.cpp
+|   |   |-- DockManager.cpp
+|   |   |-- ReservationManager.cpp
+|   |   |-- RentalManager.cpp
+|   |   `-- MaintenanceManager.cpp (planned; verify whether it exists)
+|   `-- SystemSetup.cpp
+|-- main.cpp
+|-- tests.cpp
+`-- PROJECT_SPEC.txt (this document)
+
+This is a target layout, not a claim that all these files currently exist.
+Inspect the recovered directory first. If the existing project uses a slightly
+different layout, report it and either preserve it or propose a minimal
+consistent migration. Do not move or delete files without explaining the
+change.
+
+Keep include paths consistent with the actual directory layout. With source
+files under src/models and headers under include/models, includes in source
+files may look like:
+#include "../../include/models/User.h"
+Manager source files may include headers with paths like:
+#include "../../include/managers/UserManager.h"
+Header files under include/managers may include model headers with paths like:
+#include "../models/User.h"
+SystemSetup.cpp may include:
+#include "../include/SystemSetup.h"
+
+Do not mix incompatible include conventions.
+
+======================================================================
+6. MODEL RESPONSIBILITIES
+======================================================================
+
+6.1 User
+
+Represents a registered person using the service.
+
+Previously intended fields:
+- int userID
+- string name
+- string email
+- int currentBikeID, using -1 to mean no bike currently assigned
+
+Previously intended operations:
+- Constructor accepting ID, name, and email.
+- Getters for ID, name, and email.
+- displayUser()
+- assignBike(bikeID)
+- returnBike(), which resets currentBikeID to -1
+- hasBike()
+- getCurrentBike()
+
+Rules:
+- A user must not rent multiple bikes at once.
+- A user who already has a bike should not be added to a reservation queue.
+- A user ID must not be registered twice.
+- Do not store passwords in plaintext if authentication is added later. Authentication is not currently a completed feature.
+
+6.2 Bike
+
+Represents one bike.
+
+Previously intended fields:
+- int bikeID
+- bool available
+
+Previously intended operations:
+- Constructor accepting bike ID; bike begins available.
+- getBikeID()
+- rentBike()
+- returnBike()
+- isAvailable()
+- displayBike()
+
+The old implementation used a boolean availability field and printed status messages.
+Review whether the current implementation needs more explicit status values, such
+as AVAILABLE, RENTED, and MAINTENANCE. If changing the model, do so consistently
+and avoid introducing contradictory states.
+
+Important consistency rule:
+- A bike must not simultaneously be available at a dock and assigned to a user.
+- A rented bike must not remain in a dock's bike collection.
+- A bike sent for maintenance must not be rentable.
+
+6.3 Dock
+
+Represents a bike station at a campus graph location.
+
+Previously intended fields:
+- int dockID
+- string name
+- int locationID
+- vector<int> bikes, storing bike IDs currently at the dock
+
+Previously intended operations:
+- Constructor accepting dock ID, name, and locationID.
+- getDockID(), getName(), getLocationID()
+- addBike(bikeID)
+- removeBike(bikeID), returning false if the bike is not present
+- getAvailableBike(), returning the first available bike ID or -1 when empty
+- displayDock()
+
+Rules:
+- Keep dockID and locationID distinct.
+- Avoid adding the same bike to a dock twice.
+- removeBike should only succeed if that bike is actually stored at the dock.
+- getAvailableBike should return -1 for an empty dock.
+- A bike should be stored at only one dock at a time.
+
+6.4 Graph
+
+Represents campus locations and roads.
+
+Previously intended fields:
+- Adjacency list for a weighted, undirected graph.
+- A mapping from locationID to a human-readable location name.
+- A collection of location IDs marked as dock locations.
+
+The old implementation used:
+unordered_map<int, vector<pair<int,int>>> adjacencyList;
+unordered_map<int, string> locationNames;
+unordered_set<int> dockLocations;
+
+These types must be replaced under the new restriction. Keep vector/string if permitted, and use custom records such as:
+struct Edge { int destinationLocationID; int distance; };
+struct LocationRecord { int locationID; string name; };
+A custom hash table can map IDs to records or indices. A simpler vector of records with linear search is also acceptable for a small campus, if justified. Prefer the solution that is easiest to explain and maintain for a course project, not unnecessary abstraction.
+
+Previously intended operations:
+- addLocation(locationID, name)
+- addRoad(location1, location2, distance)
+- displayGraph()
+- dijkstra(startLocation), returning the shortest distance to each location
+- markAsDock(locationID)
+- findNearestDock(startLocation)
+- getNearbyDocks(startLocation), a planned feature to return nearby dock locations ordered by travel cost; verify whether it exists
+
+Rules:
+- Roads are bidirectional in this model.
+- Reject or report a road if either location does not exist.
+- Reject invalid distances, ideally distance <= 0, unless zero-weight roads are intentionally allowed.
+- Dijkstra assumes nonnegative edge weights.
+- Unknown starting locations must be handled safely.
+- Unreachable locations should remain at an infinity-like sentinel and must not be reported as a valid nearest dock.
+- findNearestDock should return a clearly documented sentinel (previously -1) if no reachable dock exists.
+- If getNearbyDocks is implemented, it should return locationID and distance for each reachable dock in increasing distance order. Do not use std::pair if it is disallowed; define a struct such as NearbyDock { int locationID; int distance; }.
+- The nearest-dock algorithm should use the custom min-heap, not std::priority_queue.
+
+======================================================================
+7. MANAGER RESPONSIBILITIES
+======================================================================
+
+Managers coordinate the model objects and enforce rules. Keep model classes
+focused on their own state and simple operations.
+
+7.1 UserManager
+
+Previously intended storage:
+- Users indexed by userID.
+
+Previously intended operations:
+- addUser(userID, name, email)
+- getUser(userID), returning a pointer or nullptr
+- displayAllUsers()
+
+The old implementation used unordered_map<int, User>. Replace it with the
+custom hash table, or a simple vector-based registry if that is more suitable
+for the assignment. The student values correct data-structure implementation;
+the custom hash table is the preferred solution if hash tables are required.
+
+Requirements:
+- Detect duplicate IDs.
+- Return nullptr or another explicit failure result for missing users.
+- Avoid silently overwriting an existing user.
+- Handle empty user lists cleanly.
+
+7.2 BikeManager
+
+Previously intended storage:
+- Bikes indexed by bikeID.
+
+Previously intended operations:
+- addBike(bikeID)
+- bikeExists(bikeID) const
+- getBike(bikeID), returning pointer or nullptr
+- displayAllBikes() const
+
+Replace unordered_map<int, Bike> with the custom hash table or another permitted
+implementation. Detect duplicate IDs and handle missing IDs safely.
+
+7.3 DockManager
+
+Previously intended storage:
+- Docks indexed by dockID.
+
+Previously intended operations:
+- addDock(dockID, name, locationID)
+- getDock(dockID)
+- findDockByLocation(locationID)
+- displayAllDocks() const
+
+Replace unordered_map<int, Dock>. findDockByLocation must return the dock whose
+locationID matches the requested graph location, or nullptr if none exists.
+Reject duplicate dock IDs. Consider detecting two docks at the same location
+if that is a system rule, but do not impose that restriction unless intended.
+
+7.4 ReservationManager
+
+Owns reservation waiting queues; it does not perform the actual bike rental.
+
+Previously intended storage:
+- One FIFO queue per dock ID.
+- A user joins a queue when they want a bike at a dock that has none available.
+
+Previously intended operations:
+- addToQueue(userID, dockID, userManager, dockManager)
+- hasWaitingUser(dockID)
+- getNextUser(dockID)
+- displayQueue(dockID)
+
+Old implementation used:
+unordered_map<int, queue<int>> reservationQueues;
+
+Replace both the map and queue with custom implementations. A practical design
+is a custom hash table mapping dockID to a custom queue of user IDs. Another
+acceptable design for this small project is a vector of DockQueue records,
+each holding dockID and a custom queue, if vector is permitted.
+
+Rules:
+- Validate that user and dock exist.
+- Do not enqueue a user who already has a bike.
+- Do not allow duplicate waiting entries for the same user/dock if practical.
+- Preserve FIFO order: the earliest waiting user is considered first.
+- getNextUser should return -1 if no one is waiting, or use another clearly
+  documented failure mechanism.
+- displayQueue must not destroy or reorder the actual queue. Use a safe
+  traversal/copy mechanism supported by the custom queue design.
+- If a user is removed from a queue or receives a bike, the queue must remain
+  valid even when it becomes empty.
+
+7.5 RentalManager
+
+Owns active rentals and coordinates User, Bike, Dock, and Reservation managers.
+
+Previously intended storage:
+- A mapping from userID to active bikeID.
+
+Previously intended operations:
+- rentBike(userID, dockID, userManager, bikeManager, dockManager)
+- returnBike(userID, dockID, userManager, bikeManager, dockManager,
+  reservationManager)
+- getActiveBike(userID), returning bike ID or -1 if there is no active rental
+
+Old implementation used unordered_map<int, int> activeRentals. Replace it with
+the custom hash table or another permitted registry.
+
+Renting flow:
+1. Confirm that the user exists.
+2. Confirm that the dock exists.
+3. Confirm that the user does not already have a bike.
+4. Find an available bike at the selected dock.
+5. If none is available, report that condition and let the caller offer or
+   add the user to the reservation queue.
+6. Confirm that the bike exists in BikeManager.
+7. Remove the bike ID from the dock.
+8. Mark the bike as rented.
+9. Assign the bike to the user.
+10. Record the active rental.
+11. Report success.
+
+Returning flow:
+1. Confirm that the user and destination dock exist.
+2. Confirm that the user has a bike.
+3. Find the active bike and verify the record is consistent.
+4. Clear the user's assigned bike.
+5. Mark the bike as returned/available, subject to any maintenance state.
+6. Remove the active rental record.
+7. If a valid user is waiting at the return dock, dequeue the next eligible
+   user and assign the returned bike directly to that user.
+8. If no eligible user is waiting, add the bike to the destination dock.
+9. Report the result.
+
+Important consistency:
+- When a returned bike is automatically assigned to a waiting user, it should
+  not first be inserted into the dock and then removed again.
+- If a dequeued user is invalid or already has a bike, do not lose the bike.
+  Either skip invalid queue entries safely or return the bike to the dock.
+- Avoid changing the user/bike/dock state until required validations pass.
+- Ensure a bike cannot be active in two rentals at once.
+- Returning a bike to a dock should use that dock's ID, while its graph
+  location is identified by locationID.
+
+7.6 MaintenanceManager (planned; verify actual files)
+
+Maintenance was a planned extension and should be treated as incomplete until
+the recovered code confirms otherwise.
+
+Intended purpose:
+- Record a bike reported as faulty.
+- Keep a list or custom queue of bikes waiting for maintenance.
+- Prevent a bike needing maintenance from being rented.
+- Mark maintenance as completed and restore the bike to service when safe.
+- Ensure a bike in maintenance is not also present in a dock's rentable-bike
+  collection or assigned to a user.
+
+A basic version could use a custom queue of bike IDs and a custom hash set/table
+to prevent duplicate maintenance reports. It needs to coordinate with BikeManager,
+DockManager, and RentalManager rather than only print a message.
+
+Do not add complicated repair scheduling, staff accounts, or predictive
+maintenance unless the student asks for it. First implement a simple, testable
+maintenance lifecycle.
+
+======================================================================
+8. SYSTEM SETUP
+======================================================================
+
+SystemSetup is responsible for creating the fixed sample campus configuration.
+It should be separate from main() and the manager implementations.
+
+Previously intended function:
+setupSystem(Graph& campus, DockManager& dockManager, BikeManager& bikeManager)
+
+Setup tasks:
+1. Add the five sample campus locations.
+2. Add the five sample roads and distances.
+3. Create Dock 101 at Library location 2.
+4. Create Dock 102 at Hostel location 3.
+5. Mark locations 2 and 3 as dock locations in the graph.
+6. Create bikes 501, 502, and 503.
+7. Put bikes 501 and 502 at Dock 101.
+8. Put bike 503 at Dock 102.
+
+Check every pointer returned by getDock before dereferencing it. Setup should
+not depend on the user manually entering campus roads or initial bikes.
+
+======================================================================
+9. MAIN PROGRAM AND FRONTEND PLAN
+======================================================================
+
+main.cpp has previously been a temporary command-line shell. It created the
+managers, graph, and setup, then displayed a menu with Register, Login, and Exit.
+At one point, Register and Login were only placeholders that printed a message.
+
+Therefore:
+- Do not claim that login/authentication is fully implemented just because
+  those menu options exist.
+- Inspect the current main.cpp and verify which options work.
+- Keep main.cpp thin. Business rules should live in managers.
+- Use the CLI only to exercise the backend while the core is being developed.
+
+Long-term requirement:
+The final user experience should be a real website frontend, not a CLI-only
+application. The backend should be designed so it can later be called through
+an API or a small server layer. Do not mix web page code into model classes.
+
+Before choosing a backend/frontend integration, explain feasible options and
+their trade-offs to the student. Do not introduce an unfamiliar framework,
+database, payment gateway, or server dependency without discussing it first.
+
+Possible future website features:
+- Register/login screens.
+- Campus map or list of campus locations.
+- Nearby dock selection.
+- Bike availability by dock.
+- Rent-bike action.
+- Reservation queue status.
+- Active rental and return-bike action.
+- Maintenance reporting (possibly an admin/staff feature).
+- QR unlock simulation.
+- Rental duration and pricing/payment integration.
+
+These are future features unless the existing repository proves otherwise.
+
+======================================================================
+10. FEATURES PREVIOUSLY IMPLEMENTED OR REPORTED WORKING
+======================================================================
+
+The following were present or reported working in an earlier version. The
+current recovered files may differ, so verify each item before relying on it.
+
+Core model and manager work:
+- User, Bike, and Dock classes were created with separate .h/.cpp files.
+- User tracks currentBikeID, with -1 meaning no current bike.
+- Bike tracks availability using a boolean in the older implementation.
+- Dock tracks dockID, name, locationID, and bike IDs stored at that dock.
+- UserManager supports registration, duplicate-ID checks, lookup, and display.
+- BikeManager supports adding bikes, duplicate checks, lookup, and display.
+- DockManager supports adding docks, lookup by ID, lookup by locationID, and
+  display.
+- Campus Graph supports locations, roads, graph display, Dijkstra, marking
+  dock locations, and finding a nearest dock.
+- The graph uses weighted bidirectional roads.
+- SystemSetup configures the five sample locations, roads, two docks, and
+  three bikes.
+- ReservationManager was separated from RentalManager.
+- ReservationManager was designed to hold FIFO reservation queues per dock.
+- RentalManager was designed to rent and return bikes and automatically assign
+  a returned bike to a waiting user.
+- A tests.cpp file existed.
+- Seventeen tests were previously reported as passing after an earlier
+  directory refactor.
+
+Important qualification:
+The old implementation used STL structures including unordered_map,
+unordered_set, queue, priority_queue, and pair. Those usages now need to be
+replaced or verified against the instructor's rules. The previous passing test
+result does not prove that the recovered version compiles or that it complies
+with the new restriction.
+
+The following should be treated as planned or incomplete unless verified:
+- getNearbyDocks() returning multiple nearby docks in sorted distance order.
+- MaintenanceManager.
+- A fully functional register/login workflow.
+- QR code unlocking.
+- Rental time/duration and billing.
+- Payment processing/payment plans.
+- A website frontend.
+- Persistent database storage.
+- Real-world GPS/map integration.
+
+======================================================================
+11. TESTING REQUIREMENTS
+======================================================================
+
+Inspect tests.cpp before changing the project. Preserve existing valid tests
+and add tests for the new custom data structures. If the old tests are missing
+or no longer match the APIs, explain that and recreate a coherent test suite.
+
+Minimum custom data structure tests:
+
+Queue:
+- Enqueue one item and dequeue it.
+- Enqueue several items and verify FIFO order.
+- Dequeue until empty.
+- Check empty dequeue behavior.
+- Enqueue again after the queue becomes empty.
+- Verify front/rear pointers or indices remain valid after removing the final
+  item.
+- Verify displaying/traversing the queue does not mutate it.
+
+Stack:
+- Push one item and pop it.
+- Push several items and verify LIFO order.
+- Pop until empty.
+- Check empty pop/top behavior.
+- Push again after becoming empty.
+
+Hash table:
+- Insert and retrieve values.
+- Search for a missing key.
+- Insert duplicate keys and verify the documented behavior.
+- Force collisions and verify all collided keys remain retrievable.
+- Test deletion if supported.
+- Test resizing/rehashing if implemented.
+- Test enough entries to exercise table growth.
+
+Min-heap:
+- Insert entries in non-sorted order.
+- Verify extract-min returns values in increasing priority order.
+- Test one item, repeated priorities, and empty behavior.
+- Test enough entries to trigger capacity growth if applicable.
+
+Model and manager tests:
+- Register a user and reject duplicate user ID.
+- Add a bike and reject duplicate bike ID.
+- Add a dock and reject duplicate dock ID.
+- Reject invalid/missing IDs safely.
+- Check dock add/remove bike behavior.
+- Check graph location/road validation.
+- Check Dijkstra distances on the sample graph.
+- Check nearest dock from a known location.
+- Check unknown and unreachable locations.
+- Rent a bike successfully.
+- Reject a second rental by the same user.
+- Reject a rental when no bike is available.
+- Add a valid user to a reservation queue.
+- Reject invalid users/docks and users already holding bikes.
+- Confirm FIFO reservation order.
+- Return a bike to a dock with no waiting users.
+- Return a bike where a user is waiting and confirm automatic assignment.
+- Confirm all model states and active rental records agree after each action.
+- Test invalid return operations and maintenance behavior if implemented.
+
+Keep tests deterministic and easy to run. Tests must not require real payment,
+internet access, GPS, or a website.
+
+======================================================================
+12. BUILD AND COMPILATION
+======================================================================
+
+The previous suggested compile command for the application was:
+
+g++ -std=c++17 main.cpp src/models/*.cpp src/managers/*.cpp src/SystemSetup.cpp -Iinclude -o ebike
+
+Once custom data structure implementation files exist, include them too, for
+example by adding src/ds/*.cpp if the design uses separate .cpp files.
+
+The previous suggested test command was:
+
+g++ -std=c++17 tests.cpp src/models/*.cpp src/managers/*.cpp src/SystemSetup.cpp -Iinclude -o tests
+
+Again, add custom data structure source files as needed.
+
+Do not compile main.cpp and tests.cpp into the same executable if both define
+main(). Use one command for the application and another for tests.
+
+If a data structure is implemented as a C++ template, its implementation
+usually needs to be available to any translation unit that instantiates it.
+For a template-based custom hash table/queue/stack/heap, keep the template
+implementation in the header or in a file included by the header. Do not put
+template definitions in a separate .cpp and then expect arbitrary uses to link.
+
+After changes:
+1. Compile the application.
+2. Compile and run the tests.
+3. Fix warnings/errors caused by the change.
+4. State the exact commands used and their results.
+5. Do not claim that a build or test passed unless it was actually run.
+
+======================================================================
+13. DESIGN AND CODING STYLE
+======================================================================
+
+- Use C++ and retain modular .h/.cpp separation.
+- Use `using namespace std;` consistently with the existing project style,
+  unless a course requirement says otherwise.
+- Keep code readable and suitable for a second-year C++/DSA course project.
+- Avoid unnecessary comments, excessive whitespace, and overengineered naming.
+- Use straightforward names such as UserManager, BikeManager, DockManager,
+  ReservationManager, RentalManager, and MaintenanceManager.
+- Keep the exact field name locationID.
+- Use include guards in headers.
+- Keep class declarations in headers and non-template function definitions in
+  source files.
+- Validate inputs and avoid dereferencing nullptr.
+- Keep each class responsible for a clear task.
+- Do not duplicate business logic across main() and manager classes.
+- Do not add third-party dependencies without asking.
+- Do not replace the whole architecture merely because one file is old.
+- Do not delete tests or working features to make compilation easier.
+- Do not silently change public function signatures. If a change is needed,
+  update all callers and tests and explain it.
+- Do not generate huge amounts of code in one step without giving the student
+  a chance to review it.
+
+The student wants guidance and wants to understand/implement the project, not
+just receive a large opaque code dump. Explain major data structure decisions
+briefly and make changes in reviewable steps.
+
+======================================================================
+14. REQUIRED MIGRATION PLAN FOR CODEX
+======================================================================
+
+Follow this sequence. Do not immediately rewrite all files.
+
+PHASE 1 — AUDIT THE RECOVERED PROJECT
+1. List the current files and directories.
+2. Read all headers and source files, especially Graph, the managers, main.cpp,
+   tests.cpp, and SystemSetup.
+3. Identify every prohibited STL container, algorithm, or type.
+4. Identify mismatched declarations/definitions, broken includes, and APIs that
+   differ between files.
+5. Mark each feature as:
+   - present and working based on code/tests,
+   - present but incomplete,
+   - missing,
+   - or unable to verify.
+6. Report a concise audit before making destructive changes.
+7. Preserve a backup or make a clear, minimal patch plan before large edits.
+
+PHASE 2 — IMPLEMENT AND TEST CUSTOM DATA STRUCTURES
+1. Decide whether the hash table should use separate chaining or open
+   addressing. Prefer the simpler option that the student can explain.
+2. Implement and test the custom hash table.
+3. Implement and test the custom FIFO queue.
+4. Implement and test the custom min-heap.
+5. Implement and test a custom stack if required by the course/project.
+6. Use custom structs rather than std::pair if pair is disallowed.
+7. Avoid prohibited STL containers and algorithms inside these structures.
+8. Do not migrate all managers until the data structures themselves pass tests.
+
+PHASE 3 — MIGRATE THE PROJECT
+1. Replace UserManager's unordered_map.
+2. Replace BikeManager's unordered_map.
+3. Replace DockManager's unordered_map.
+4. Replace Graph's unordered_map/unordered_set/pair/priority_queue.
+5. Replace ReservationManager's unordered_map<int, queue<int>>.
+6. Replace RentalManager's unordered_map.
+7. Update SystemSetup and main only as needed.
+8. Ensure every file compiles with a consistent API and include structure.
+9. Search again for prohibited STL types and algorithms.
+
+PHASE 4 — VERIFY CORE LOGIC
+1. Test graph setup and Dijkstra.
+2. Test nearest dock.
+3. Test renting and returning.
+4. Test reservation FIFO order and automatic assignment on return.
+5. Test duplicate IDs and invalid input.
+6. Check state consistency across User, Bike, Dock, and RentalManager.
+7. Restore or recreate tests as needed; preserve the prior intent of the seventeen
+   reported tests if their exact definitions are available.
+
+PHASE 5 — COMPLETE INCREMENTAL FEATURES
+1. Implement getNearbyDocks if it is still required.
+2. Implement MaintenanceManager and bike maintenance state.
+3. Complete CLI flows for registration, listing docks/bikes, finding a nearby
+   dock, renting, queueing, returning, and viewing rental state.
+4. Keep authentication simple until its requirements are clear.
+5. Add QR unlock simulation only after basic rental state is reliable.
+
+PHASE 6 — DOCUMENTATION AND WEBSITE PREPARATION
+1. Update the project report and diagrams to match actual code.
+2. Document each custom data structure and its time complexity.
+3. Explain Dijkstra and the nearest-dock algorithm.
+4. Explain queue-based reservation and automatic assignment.
+5. Keep the backend independent of the eventual website.
+6. Plan a website/API integration only after discussing framework and deployment
+   choices with the student.
+
+======================================================================
+15. EXPECTED DATA STRUCTURE COMPLEXITIES
+======================================================================
+
+Document the actual implementation's complexity rather than claiming ideal
+complexities without checking the design.
+
+Typical targets:
+- Custom hash table: expected O(1) insert/find/erase with a reasonable hash
+  function and collision handling; worst case can be O(n).
+- Linked-list queue: O(1) enqueue and dequeue when front and rear pointers are
+  maintained.
+- Array-based binary min-heap: O(log n) insert and extract-min; O(1) peek-min.
+- Stack: O(1) push/pop/top for a linked-list stack or dynamic-array stack.
+- Dijkstra using adjacency lists and a binary min-heap: commonly described as
+  O((V + E) log V) for the usual implementation, with details depending on
+  duplicate heap entries and graph representation.
+- Linear search through a small vector: O(n); acceptable if deliberately
+  chosen for simplicity and the campus remains small.
+
+Do not use std::sort to order nearby docks. Implement an allowed sorting method
+or extract results in sorted order using a custom min-heap.
+
+======================================================================
+16. IMPORTANT FUNCTIONAL RULES AND EDGE CASES
+======================================================================
+
+- A user cannot rent more than one bike at a time.
+- A bike cannot be rented by more than one user at a time.
+- A bike cannot simultaneously be in a dock and assigned to a user.
+- A bike in maintenance cannot be rented.
+- A duplicate user/bike/dock ID must be rejected or reported.
+- Unknown user, bike, dock, or graph location IDs must be handled safely.
+- Renting from an empty dock must not corrupt any state.
+- Returning without an active rental must fail safely.
+- Returning to an invalid dock must fail safely and must not lose the bike.
+- Reservation queues must maintain FIFO order.
+- A user with a bike cannot be placed in a reservation queue.
+- A user must not receive a returned bike if they no longer qualify.
+- The last item being removed from a custom queue must leave it in a valid
+  empty state.
+- Hash collisions must not make keys inaccessible.
+- Dijkstra must ignore stale heap entries and must not treat unreachable nodes
+  as nearby.
+- Graph roads are undirected in the current model.
+- All operations should preserve state consistency even when validation fails.
+
+======================================================================
+17. CURRENT PRIORITIES
+======================================================================
+
+Priority 1: Inspect the recovered files and establish what is actually present.
+Priority 2: Confirm the allowed-library interpretation with the instructor if
+            possible. Until then, follow the conservative rules in Section 3.
+Priority 3: Build custom data structures and test them separately.
+Priority 4: Migrate the managers and graph away from prohibited STL structures.
+Priority 5: Compile and test the full backend.
+Priority 6: Finish missing rental, reservation, and maintenance behavior.
+Priority 7: Improve the CLI only enough to test the backend.
+Priority 8: Plan the website frontend/API after the backend is stable.
+
+Do not start with payment processing, real QR hardware, GPS, or a polished
+frontend. Those are later-stage extensions.
+
+======================================================================
+18. FIRST TASK FOR CODEX
+======================================================================
+
+Start by auditing the existing repository. Do not rewrite it immediately.
+
+Return:
+1. The actual directory/file tree.
+2. A table of each file and its current responsibility.
+3. A list of all uses of prohibited STL containers, algorithms, and types.
+4. A feature status table comparing the recovered code with this specification.
+5. Any compile errors or likely interface mismatches you can identify.
+6. A proposed minimal migration order.
+7. A list of assumptions that need confirmation from the student or instructor.
+
+Then wait for approval before doing a large rewrite. Small, reversible fixes may
+be proposed, but explain them before applying them.
+
+The central goal is to preserve the existing campus e-bike system, make its
+data structures compliant with the course rules, and finish a working,
+testable backend that can later support a real website frontend.

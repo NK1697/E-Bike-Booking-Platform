@@ -1,21 +1,41 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-#include <unordered_map>
 #include <vector>
 #include <climits>
 #include <string>
-#include <unordered_set>
+#include "../ds/MinHeap.h"
 
 using namespace std;
 
+struct Edge {
+    int destinationLocationID;
+    int distance;
+};
+
+struct LocationData {
+    int locationID;
+    string name;
+    vector<Edge> roads;
+    bool isDock;
+};
+
+struct LocationDistance {
+    int locationID;
+    int distance;
+};
+
+struct NearbyDock {
+    int locationID;
+    int distance;
+};
+
 class Graph {
     private:
-        unordered_set<int> dockLocations;
-        unordered_map<int, vector<pair<int, int>>> adjacencyList;
-        unordered_map<int, string> locationNames;
+        vector<LocationData> locations;
+        int getLocationIndex(int locationID) const;
     public:
-        unordered_map<int, int> dijkstra(int startLocation) const;
+        vector<LocationDistance> dijkstra(int startLocation) const;
         void addLocation(int locationID, string name);
         void addRoad(
             int location1,
@@ -25,6 +45,7 @@ class Graph {
         void displayGraph() const;
         void markAsDock(int locationID);
         int findNearestDock(int startLocation) const;
+        vector<NearbyDock> getNearbyDocks(int startLocation) const;
 };
 
 #endif

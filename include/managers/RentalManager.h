@@ -1,7 +1,7 @@
 #ifndef RENTAL_MANAGER_H
 #define RENTAL_MANAGER_H
 
-#include <unordered_map>
+#include "../ds/HashTable.h"
 
 using namespace std;
 
@@ -12,7 +12,7 @@ class ReservationManager;
 
 class RentalManager {
     private:
-        unordered_map<int, int> activeRentals;
+        HashTable<int> activeRentals;
 
     public:
         bool rentBike(

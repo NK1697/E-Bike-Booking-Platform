@@ -8,18 +8,19 @@ using namespace std;
 
 class Dock {
 private:
-    int LocationID;
+    int locationID;
     int dockID;
     string name;
     vector<int> bikes;
 
 public:
-    int getGraphLocationID() const;
     Dock(int id, string name, int locationID);
     int getDockID() const;
     string getName() const;
+    int getLocationID() const;
     void addBike(int bikeID);
     bool removeBike(int bikeID);
+    bool hasBike(int bikeID) const;
     void displayDock() const;
     int getAvailableBike() const;
 };

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIT Trichy E-Bike</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="top-bar">
+        <div>
+            <p class="small-title">CAMPUS MOBILITY</p>
+            <h1>NIT Trichy E-Bike</h1>
+        </div>
+        <span class="user-name">Guest user</span>
+    </header>
+
+    <main class="page">
+        <section class="welcome">
+            <div>
+                <p class="small-title">WELCOME BACK</p>
+                <h2>Find a bike for your next class</h2>
+                <p>Check nearby docks, rent a bike, or manage your current ride.</p>
+            </div>
+            <button class="main-btn" id="findBtn">Find nearby dock</button>
+        </section>
+
+        <section class="grid">
+            <article class="card ride-card">
+                <p class="small-title">YOUR RIDE</p>
+                <h3 id="rideTitle">No active ride</h3>
+                <p id="rideText">Rent a bike from a campus dock to get started.</p>
+                <button class="light-btn" id="returnBtn" disabled>Return bike</button>
+            </article>
+
+            <article class="card">
+                <p class="small-title">CAMPUS STATUS</p>
+                <div class="status-row"><span>Available bikes</span><strong id="bikeCount">3</strong></div>
+                <div class="status-row"><span>Active docks</span><strong>2</strong></div>
+                <div class="status-row"><span>Maintenance</span><strong>0</strong></div>
+            </article>
+        </section>
+
+        <section class="dock-section">
+            <div class="section-head">
+                <div>
+                    <p class="small-title">NEARBY DOCKS</p>
+                    <h2>Campus docks</h2>
+                </div>
+                <p id="notice" class="notice">Select a dock to rent a bike.</p>
+            </div>
+            <div id="dockList" class="dock-list"></div>
+        </section>
+    </main>
+
+    <footer>Campus E-Bike Rental System · Project prototype</footer>
+    <script src="app.js"></script>
+</body>
+</html>
