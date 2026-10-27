@@ -3,12 +3,16 @@
 
 using namespace std;
 
-void DockManager::addDock(int dockID, string name, int locationID) {
+void DockManager::addDock(int dockID, string name, int locationID, int capacity) {
     if (docks.contains(dockID)) {
         cout << "Dock " << dockID << " already exists.\n";
         return;
     }
-    docks.insert(dockID, Dock(dockID, name, locationID));
+    if (capacity <= 0) {
+        cout << "Dock capacity must be positive.\n";
+        return;
+    }
+    docks.insert(dockID, Dock(dockID, name, locationID, capacity));
     cout << "Dock " << dockID << " added successfully.\n";
 }
 

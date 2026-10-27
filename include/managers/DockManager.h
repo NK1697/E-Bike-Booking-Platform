@@ -11,7 +11,7 @@ private:
     HashTable<Dock> docks;
 
 public:
-    void addDock(int dockID, string name, int locationID);
+    void addDock(int dockID, string name, int locationID, int capacity);
     Dock *getDock(int dockID);
     void displayAllDocks() const;
     Dock* findDockByLocation(int locationID);

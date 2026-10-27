@@ -3,10 +3,11 @@
 
 using namespace std;
 
-Dock::Dock(int id, string name, int locationID) {
+Dock::Dock(int id, string name, int locationID, int capacity) {
     dockID = id;
     this->name = name;
     this->locationID = locationID;
+    this->capacity = capacity;
 }
 
 int Dock::getDockID() const {
@@ -21,13 +22,27 @@ int Dock::getLocationID() const {
     return locationID;
 }
 
-void Dock::addBike(int bikeID) {
+int Dock::getCapacity() const {
+    return capacity;
+}
+
+int Dock::getBikeCount() const {
+    return static_cast<int>(bikes.size());
+}
+
+bool Dock::hasSpace() const {
+    return getBikeCount() < capacity;
+}
+
+bool Dock::addBike(int bikeID) {
     for (int storedBikeID : bikes) {
         if (storedBikeID == bikeID) {
-            return;
+            return false;
         }
     }
+    if (!hasSpace()) return false;
     bikes.push_back(bikeID);
+    return true;
 }
 
 bool Dock::removeBike(int bikeID){
@@ -50,6 +65,7 @@ bool Dock::hasBike(int bikeID) const {
 void Dock::displayDock() const {
     cout << "Dock ID: " << dockID << '\n';
     cout << "Location: " << name << '\n';
+    cout << "Capacity: " << getBikeCount() << "/" << capacity << '\n';
     cout << "Bikes: ";
 
     if(bikes.empty()) {
