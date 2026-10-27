@@ -34,6 +34,10 @@ bool MaintenanceManager::completeMaintenance(int bikeID, int dockID, BikeManager
         cout << "Bike or dock data is not valid for maintenance completion.\n";
         return false;
     }
+    if (!dock->hasSpace()) {
+        cout << "Dock " << dockID << " is full. Choose another dock.\n";
+        return false;
+    }
     bike->completeMaintenance();
     dock->addBike(bikeID);
     reportedBikes.erase(bikeID);

@@ -74,10 +74,11 @@ int main() {
     setupSystem(campus, dockManager, bikeManager);
 
     vector<LocationDistance> distances = campus.dijkstra(1);
-    check(getDistance(distances, 3) == 7, "dijkstra finds CSE to Hostel distance");
-    check(campus.findNearestDock(1) == 2, "nearest dock from CSE is Library");
+    check(getDistance(distances, 3) == 3, "dijkstra finds Aquamarine A to Mega Mess 1 distance");
+    check(getDistance(distances, 18) == 27, "dijkstra finds Aquamarine A to Dominos distance");
+    check(campus.findNearestDock(1) == 1, "each campus location is a dock");
     vector<NearbyDock> nearbyDocks = campus.getNearbyDocks(1);
-    check(nearbyDocks.size() == 2 && nearbyDocks[0].locationID == 2 && nearbyDocks[1].locationID == 3, "nearby docks are ordered by distance");
+    check(nearbyDocks.size() == 18 && nearbyDocks[0].locationID == 1, "all campus docks are ordered by distance");
     check(campus.findNearestDock(999) == -1, "unknown graph location is safe");
 
     userManager.addUser(1, "Nirav", "nirav@example.com");
@@ -86,12 +87,13 @@ int main() {
     userManager.addUser(1, "Duplicate", "duplicate@example.com");
     check(userManager.getUser(1) != nullptr, "user registration works");
     check(bikeManager.bikeExists(501), "sample bike exists");
-    check(dockManager.findDockByLocation(2) != nullptr, "dock location lookup works");
+    check(dockManager.findDockByLocation(1) != nullptr, "dock location lookup works");
+    check(dockManager.getDock(101)->getCapacity() == 8, "dock capacity is initialized at 50 percent above bike count");
 
     check(rentalManager.rentBike(1, 101, userManager, bikeManager, dockManager), "first rental succeeds");
     check(rentalManager.rentBike(2, 101, userManager, bikeManager, dockManager), "second rental succeeds");
-    check(!rentalManager.rentBike(3, 101, userManager, bikeManager, dockManager), "empty dock rental fails safely");
-    check(reservationManager.addToQueue(3, 101, userManager, dockManager), "user joins empty-dock queue");
+    check(dockManager.getDock(101)->getBikeCount() == 3, "bike count updates after rentals");
+    check(reservationManager.addToQueue(3, 101, userManager, dockManager), "user joins dock queue");
     check(!reservationManager.addToQueue(3, 101, userManager, dockManager), "duplicate queue entry is rejected");
     check(rentalManager.returnBike(1, 101, userManager, bikeManager, dockManager, reservationManager), "return succeeds with waiting user");
     check(!userManager.getUser(1)->hasBike() && userManager.getUser(3)->hasBike(), "returned bike goes to waiting user");

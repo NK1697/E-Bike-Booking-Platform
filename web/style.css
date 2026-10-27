@@ -46,6 +46,24 @@ h3 { margin-bottom: 8px; color: var(--dark); }
     font-size: 14px;
 }
 
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.location-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: #fff;
+    color: var(--dark);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.location-chip:hover { border-color: var(--green); box-shadow: 0 5px 13px rgba(25, 52, 45, .1); transform: translateY(-1px); }
+.location-pin { width: 8px; height: 8px; color: var(--green); font-size: 13px; line-height: 8px; }
+
 .page { width: min(1050px, 88%); margin: 34px auto 50px; }
 
 .welcome {
@@ -74,10 +92,12 @@ h3 { margin-bottom: 8px; color: var(--dark); }
 
 .main-btn, .rent-btn { background: #d9f16b; color: #24351c; }
 .light-btn { background: #e6f2ed; color: var(--green); }
-.light-btn:disabled { color: #8d9c96; cursor: default; }
+.main-btn:hover, .rent-btn:hover, .select-dock-btn:hover { filter: brightness(.96); transform: translateY(-1px); }
+.light-btn:hover:not(:disabled) { background: #d4e9df; }
+.light-btn:disabled, .rent-btn:disabled, .select-dock-btn:disabled { color: #8d9c96; background: #edf1ef; cursor: not-allowed; transform: none; filter: none; }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
-.card, .dock-item { background: white; border: 1px solid var(--line); border-radius: 10px; }
+.card, .dock-item { background: white; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 3px 10px rgba(25, 52, 45, .025); }
 .card { padding: 22px; }
 .ride-card { border-left: 5px solid var(--green); }
 
@@ -94,12 +114,100 @@ h3 { margin-bottom: 8px; color: var(--dark); }
 .notice { color: #63736c; font-size: 14px; }
 .dock-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-.dock-item { padding: 20px; }
+.dock-item { padding: 20px; transition: border-color .18s ease, box-shadow .18s ease; }
+.dock-item:hover { border-color: #b8d6ca; box-shadow: 0 8px 22px rgba(25, 52, 45, .08); }
+.current-dock { border-color: var(--green); background: linear-gradient(135deg, #fff, #f0faf5); }
 .dock-top, .dock-bottom { display: flex; justify-content: space-between; gap: 15px; align-items: center; }
 .dock-top { margin-bottom: 19px; }
 .dock-name { margin: 0; color: var(--dark); font-size: 18px; }
+.dock-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .dock-distance { color: #6a7c73; font-size: 14px; }
 .bike-tag { padding: 6px 9px; border-radius: 14px; background: #e6f2ed; color: var(--green); font-size: 13px; }
+.here-tag { padding: 3px 7px; border-radius: 10px; background: #d9f16b; color: #324221; font-size: 11px; font-weight: bold; }
+
+.modal-backdrop {
+    position: fixed;
+    z-index: 10;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 38, 31, .58);
+    backdrop-filter: blur(4px);
+}
+.modal-backdrop[hidden] { display: none; }
+.modal {
+    position: relative;
+    width: min(100%, 480px);
+    max-height: calc(100vh - 40px);
+    padding: 34px;
+    border: 1px solid rgba(255, 255, 255, .4);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(8, 27, 20, .35);
+    animation: modal-enter .2s ease-out;
+    overflow-y: auto;
+}
+.modal h2 { margin-bottom: 8px; }
+.modal-copy { color: #63736c; line-height: 1.5; }
+.modal-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 18px;
+    place-items: center;
+    border-radius: 13px;
+    background: #e6f2ed;
+    color: var(--green);
+    font-size: 25px;
+    font-weight: bold;
+}
+.modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 50%;
+    background: #f0f4f2;
+    color: #52635c;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+.modal form { margin-top: 22px; }
+.modal label { display: block; margin-bottom: 7px; color: var(--dark); font-size: 14px; font-weight: bold; }
+.modal input {
+    width: 100%;
+    padding: 12px 13px;
+    border: 1px solid #bfcfc7;
+    border-radius: 7px;
+    color: var(--dark);
+    font: inherit;
+    outline: none;
+}
+.modal input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(22, 117, 93, .13); }
+.input-help, .input-error { margin: 8px 0 17px; font-size: 12px; line-height: 1.45; }
+.input-help { color: #6a7c73; }
+.input-error { min-height: 17px; color: #b13835; }
+.full-btn { width: 100%; }
+.return-dock-list { display: grid; gap: 10px; margin-top: 20px; }
+.return-dock-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fbfdfc;
+}
+.return-dock-option strong { display: block; margin-bottom: 4px; color: var(--dark); }
+.return-dock-option span { color: #6a7c73; font-size: 12px; }
+.select-dock-btn { flex: 0 0 auto; border: 0; border-radius: 6px; padding: 10px 11px; background: #d9f16b; color: #24351c; font-weight: bold; cursor: pointer; transition: filter .18s ease, transform .18s ease; }
+
+@keyframes modal-enter { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 
 footer { padding: 22px; color: #74847c; text-align: center; font-size: 13px; }
 
@@ -107,4 +215,9 @@ footer { padding: 22px; color: #74847c; text-align: center; font-size: 13px; }
     .top-bar, .welcome, .section-head { align-items: flex-start; flex-direction: column; }
     .grid, .dock-list { grid-template-columns: 1fr; }
     .welcome { padding: 24px; }
+    .header-actions { width: 100%; justify-content: space-between; }
+    .location-chip { max-width: 62%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .dock-bottom, .return-dock-option { align-items: flex-start; flex-direction: column; }
+    .dock-bottom .rent-btn, .select-dock-btn { width: 100%; }
+    .modal { padding: 28px 22px; }
 }

@@ -97,6 +97,10 @@ bool RentalManager::returnBike(
         cout << "Bike data not found.\n";
         return false;
     }
+    if (!dock->hasSpace()) {
+        cout << "Dock " << dockID << " is full. Choose another return dock.\n";
+        return false;
+    }
 
     user->returnBike();
     activeRentals.erase(userID);

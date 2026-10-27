@@ -12,7 +12,13 @@
             <p class="small-title">CAMPUS MOBILITY</p>
             <h1>NIT Trichy E-Bike</h1>
         </div>
-        <span class="user-name">Guest user</span>
+        <div class="header-actions">
+            <button class="location-chip" id="locationBtn" type="button" aria-label="Set current location">
+                <span class="location-pin" aria-hidden="true">●</span>
+                <span id="locationLabel">Set your location</span>
+            </button>
+            <span class="user-name">Guest user</span>
+        </div>
     </header>
 
     <main class="page">
@@ -20,23 +26,23 @@
             <div>
                 <p class="small-title">WELCOME BACK</p>
                 <h2>Find a bike for your next class</h2>
-                <p>Check nearby docks, rent a bike, or manage your current ride.</p>
+                <p>Set your campus location to see the closest bikes, plan your pickup, and return your ride at a convenient dock.</p>
             </div>
-            <button class="main-btn" id="findBtn">Find nearby dock</button>
+            <button class="main-btn" id="findBtn">Find bikes near me <span aria-hidden="true">→</span></button>
         </section>
 
         <section class="grid">
             <article class="card ride-card">
                 <p class="small-title">YOUR RIDE</p>
                 <h3 id="rideTitle">No active ride</h3>
-                <p id="rideText">Rent a bike from a campus dock to get started.</p>
+                <p id="rideText">Set your location, then choose a bike from a campus dock.</p>
                 <button class="light-btn" id="returnBtn" disabled>Return bike</button>
             </article>
 
             <article class="card">
                 <p class="small-title">CAMPUS STATUS</p>
-                <div class="status-row"><span>Available bikes</span><strong id="bikeCount">3</strong></div>
-                <div class="status-row"><span>Active docks</span><strong>2</strong></div>
+                <div class="status-row"><span>Available bikes</span><strong id="bikeCount">200</strong></div>
+                <div class="status-row"><span>Active docks</span><strong id="dockCount">18</strong></div>
                 <div class="status-row"><span>Maintenance</span><strong>0</strong></div>
             </article>
         </section>
@@ -47,13 +53,41 @@
                     <p class="small-title">NEARBY DOCKS</p>
                     <h2>Campus docks</h2>
                 </div>
-                <p id="notice" class="notice">Select a dock to rent a bike.</p>
+                <p id="notice" class="notice">Set your location to see which dock is closest.</p>
             </div>
             <div id="dockList" class="dock-list"></div>
         </section>
     </main>
 
     <footer>Campus E-Bike Rental System · Project prototype</footer>
+
+    <div class="modal-backdrop" id="locationModal" hidden>
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="locationModalTitle">
+            <button class="modal-close" id="closeLocationModal" type="button" aria-label="Close">×</button>
+            <span class="modal-icon" aria-hidden="true">⌖</span>
+            <p class="small-title">YOUR CAMPUS POSITION</p>
+            <h2 id="locationModalTitle">Where are you now?</h2>
+            <p class="modal-copy">Enter a campus location ID to sort docks by distance and guide your pickup or return.</p>
+            <form id="locationForm" novalidate>
+                <label for="locationInput">Current location ID</label>
+                <input id="locationInput" inputmode="numeric" autocomplete="off" placeholder="e.g. 1 for Aquamarine A" aria-describedby="locationHelp locationError">
+                <p class="input-help" id="locationHelp">Campus location IDs: <strong>1 — Aquamarine A</strong>, <strong>2 — Aquamarine B</strong>, <strong>3 — Mega Mess 1</strong>, <strong>4 — Mega Mess 2</strong>, <strong>5 — Garnet A</strong>, <strong>6 — Garnet B</strong>, <strong>7 — Hostel Office</strong>, <strong>8 — Logos Lecture Hall</strong>, <strong>9 — Orion</strong>, <strong>10 — MIG</strong>, <strong>11 — Main Gate</strong>, <strong>12 — NSO Ground</strong>, <strong>13 — Computer Lab</strong>, <strong>14 — 2K Market</strong>, <strong>15 — Anjappar</strong>, <strong>16 — Library</strong>, <strong>17 — Computer Science Department</strong>, <strong>18 — Dominos</strong>.</p>
+                <p class="input-error" id="locationError" aria-live="polite"></p>
+                <button class="main-btn full-btn" type="submit">Save my location</button>
+            </form>
+        </section>
+    </div>
+
+    <div class="modal-backdrop" id="returnModal" hidden>
+        <section class="modal return-modal" role="dialog" aria-modal="true" aria-labelledby="returnModalTitle">
+            <button class="modal-close" id="closeReturnModal" type="button" aria-label="Close">×</button>
+            <span class="modal-icon" aria-hidden="true">↩</span>
+            <p class="small-title">END YOUR RIDE</p>
+            <h2 id="returnModalTitle">Choose a return dock</h2>
+            <p class="modal-copy">Pick the campus dock where you are parking Bike <strong id="returnBikeId"></strong>.</p>
+            <div id="returnDockList" class="return-dock-list"></div>
+        </section>
+    </div>
     <script src="app.js"></script>
 </body>
 </html>
